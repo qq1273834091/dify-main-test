@@ -36,16 +36,23 @@ class PassportResource(Resource):
         if not app_model or app_model.status != "normal" or not app_model.enable_site:
             raise NotFound()
 
-        end_user = EndUser(
-            tenant_id=app_model.tenant_id,
-            app_id=app_model.id,
-            type="browser",
-            is_anonymous=True,
-            session_id=generate_session_id(),
-        )
+        # 根据请求的参数获取 user_id
+        user_id = request.headers.get("user-id")
+        if user_id is None:
+            raise Unauthorized("user_id query parameter is missing.")
+        # # 查询用户是否存在
+        end_user = db.session.query(EndUser).filter(EndUser.session_id == user_id).first()
+        if not end_user:
+            end_user = EndUser(
+                tenant_id=app_model.tenant_id,
+                app_id=app_model.id,
+                type="browser",
+                is_anonymous=True,
+                session_id=generate_session_id(user_id),
+            )
+            db.session.add(end_user)
+            db.session.commit()
 
-        db.session.add(end_user)
-        db.session.commit()
 
         payload = {
             "iss": site.app_id,
@@ -65,12 +72,12 @@ class PassportResource(Resource):
 api.add_resource(PassportResource, "/passport")
 
 
-def generate_session_id():
+def generate_session_id(user_id):
     """
     Generate a unique session ID.
     """
     while True:
-        session_id = str(uuid.uuid4())
+        session_id = user_id
         existing_count = db.session.query(EndUser).filter(EndUser.session_id == session_id).count()
         if existing_count == 0:
             return session_id

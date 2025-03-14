@@ -52,18 +52,18 @@ const Header = () => {
   return (
     <div className='flex flex-1 items-center justify-between px-4 bg-background-body'>
       <div className='flex items-center'>
-        {isMobile && <div
-          className='flex items-center justify-center h-8 w-8 cursor-pointer'
-          onClick={toggle}
-        >
-          <Bars3Icon className="h-4 w-4 text-gray-500" />
-        </div>}
-        {!isMobile && <>
-          <Link href="/apps" className='flex items-center mr-4'>
-            <LogoSite className='object-contain' />
-          </Link>
-          {systemFeatures.license.status === LicenseStatus.NONE && <GithubStar />}
-        </>}
+        {/*{isMobile && <div*/}
+        {/*  className='flex items-center justify-center h-8 w-8 cursor-pointer'*/}
+        {/*  onClick={toggle}*/}
+        {/*>*/}
+        {/*  <Bars3Icon className="h-4 w-4 text-gray-500" />*/}
+        {/*</div>}*/}
+        {/*{!isMobile && <>*/}
+        {/*  <Link href="/apps" className='flex items-center mr-4'>*/}
+        {/*    <LogoSite className='object-contain' />*/}
+        {/*  </Link>*/}
+        {/*  {systemFeatures.license.status === LicenseStatus.NONE && <GithubStar />}*/}
+        {/*</>}*/}
       </div>
       {isMobile && (
         <div className='flex'>
@@ -75,10 +75,10 @@ const Header = () => {
       )}
       {!isMobile && (
         <div className='flex items-center'>
-          {!isCurrentWorkspaceDatasetOperator && <ExploreNav className={navClassName} />}
+          {/*{!isCurrentWorkspaceDatasetOperator && <ExploreNav className={navClassName} />}*/}
           {!isCurrentWorkspaceDatasetOperator && <AppNav />}
           {(isCurrentWorkspaceEditor || isCurrentWorkspaceDatasetOperator) && <DatasetNav />}
-          {!isCurrentWorkspaceDatasetOperator && <ToolsNav className={navClassName} />}
+          {/*{!isCurrentWorkspaceDatasetOperator && <ToolsNav className={navClassName} />}*/}
         </div>
       )}
       <div className='flex items-center flex-shrink-0'>

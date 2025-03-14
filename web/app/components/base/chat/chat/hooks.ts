@@ -75,23 +75,53 @@ export const useChat = (
     return processOpeningStatement(str, formSettings?.inputs || {}, formSettings?.inputsForm || [])
   }, [formSettings?.inputs, formSettings?.inputsForm])
 
+  const getDynamicMsg = useCallback((str: string, payload: Record<string, any>) => {
+    if (typeof str !== 'string' || typeof payload !== 'object' || payload === null) {
+        return str;
+    }
+    // 使用正则表达式匹配 {{}} 中的变量
+    return str.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
+        // 检查 payload 中是否存在该变量
+        return payload[variable] !== undefined ? payload[variable] : match;
+    });
+  }, []);
+
+
   /** Final chat list that will be rendered */
   const chatList = useMemo(() => {
     const ret = [...threadMessages]
     if (config?.opening_statement) {
       const index = threadMessages.findIndex(item => item.isOpeningStatement)
 
+      // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
+        const sharedToken = globalThis.location.pathname.split('/').slice(-1)[0];
+        const accessToken = localStorage.getItem('token') || JSON.stringify({[sharedToken]: ''});
+
+        // 解析获取token中的负载信息
+        const parsedToken = JSON.parse(accessToken);
+        const jwtToken = parsedToken[sharedToken];
+        let payload = {};
+        if (jwtToken) {
+            const [, payloadBase64] = jwtToken.split('.');
+            if (payloadBase64) {
+                const payloadJson = atob(payloadBase64);
+                payload = JSON.parse(payloadJson);
+            }
+        }
+        // 使用 getDynamicMsg 函数替换占位符
+        const replacedOpeningStatement = getDynamicMsg(config.opening_statement, payload);
+    // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
       if (index > -1) {
         ret[index] = {
           ...ret[index],
-          content: getIntroduction(config.opening_statement),
+          content: getIntroduction(replacedOpeningStatement),
           suggestedQuestions: config.suggested_questions,
         }
       }
       else {
         ret.unshift({
           id: `${Date.now()}`,
-          content: getIntroduction(config.opening_statement),
+          content: getIntroduction(replacedOpeningStatement),
           isAnswer: true,
           isOpeningStatement: true,
           suggestedQuestions: config.suggested_questions,

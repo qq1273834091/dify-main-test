@@ -223,5 +223,6 @@ export const textToAudioStream = (url: string, isPublicAPI: boolean, header: { c
 export const fetchAccessToken = async (appCode: string) => {
   const headers = new Headers()
   headers.append('X-App-Code', appCode)
+  headers.append('USER-ID', '2c9b6ecd9450c020019582ecd0c21c0d')
   return get('/passport', { headers }) as Promise<{ access_token: string }>
 }
