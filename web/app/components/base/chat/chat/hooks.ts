@@ -89,47 +89,56 @@ export const useChat = (
 
   /** Final chat list that will be rendered */
   const chatList = useMemo(() => {
-    const ret = [...threadMessages]
-    if (config?.opening_statement) {
-      const index = threadMessages.findIndex(item => item.isOpeningStatement)
+          const ret = [...threadMessages]
+          if (config?.opening_statement) {
+              const index = threadMessages.findIndex(item => item.isOpeningStatement)
 
-      // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
-        const sharedToken = globalThis.location.pathname.split('/').slice(-1)[0];
-        const accessToken = localStorage.getItem('token') || JSON.stringify({[sharedToken]: ''});
+              // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
+              const sharedToken = globalThis.location.pathname.split('/').slice(-1)[0];
+              const accessToken = localStorage.getItem('token') || JSON.stringify({[sharedToken]: ''});
 
-        // 解析获取token中的负载信息
-        const parsedToken = JSON.parse(accessToken);
-        const jwtToken = parsedToken[sharedToken];
-        let payload = {};
-        if (jwtToken) {
-            const [, payloadBase64] = jwtToken.split('.');
-            if (payloadBase64) {
-                const payloadJson = atob(payloadBase64);
-                payload = JSON.parse(payloadJson);
-            }
-        }
-        // 使用 getDynamicMsg 函数替换占位符
-        const replacedOpeningStatement = getDynamicMsg(config.opening_statement, payload);
-    // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
-      if (index > -1) {
-        ret[index] = {
-          ...ret[index],
-          content: getIntroduction(replacedOpeningStatement),
-          suggestedQuestions: config.suggested_questions,
-        }
-      }
-      else {
-        ret.unshift({
-          id: `${Date.now()}`,
-          content: getIntroduction(replacedOpeningStatement),
-          isAnswer: true,
-          isOpeningStatement: true,
-          suggestedQuestions: config.suggested_questions,
-        })
-      }
-    }
-    return ret
-  }, [threadMessages, config?.opening_statement, getIntroduction, config?.suggested_questions])
+              // 解析获取token中的负载信息
+              const parsedToken = JSON.parse(accessToken);
+              const jwtToken = parsedToken[sharedToken];
+              // 定义 payload 类型
+              interface Payload {
+                user_msg?: any;
+              }
+              let payload: Payload = {};
+              let userMsg: any;
+              if (jwtToken) {
+                  const [, payloadBase64] = jwtToken.split('.');
+                  if (payloadBase64) {
+                      const payloadJson = atob(payloadBase64);
+                      payload = JSON.parse(payloadJson) as Payload;;
+                      // 获取负载中 userMsg
+                      userMsg = payload['user_msg'];
+                  }
+              }
+              console.log(payload)
+              console.log(userMsg)
+              // 使用 getDynamicMsg 函数替换占位符
+              const replacedOpeningStatement = getDynamicMsg(config.opening_statement, userMsg);
+              // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
+              if (index > -1) {
+                  ret[index] = {
+                      ...ret[index],
+                      content: getIntroduction(replacedOpeningStatement),
+                      suggestedQuestions: config.suggested_questions,
+                  }
+              } else {
+                  ret.unshift({
+                      id: `${Date.now()}`,
+                      content: getIntroduction(replacedOpeningStatement),
+                      isAnswer: true,
+                      isOpeningStatement: true,
+                      suggestedQuestions: config.suggested_questions,
+                  })
+              }
+          }
+          return ret
+      },
+      [threadMessages, config?.opening_statement, getIntroduction, config?.suggested_questions])
 
   useEffect(() => {
     setAutoFreeze(false)

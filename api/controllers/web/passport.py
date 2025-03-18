@@ -1,5 +1,6 @@
 import uuid
 
+import jwt
 from flask import request
 from flask_restful import Resource  # type: ignore
 from werkzeug.exceptions import NotFound, Unauthorized
@@ -36,23 +37,37 @@ class PassportResource(Resource):
         if not app_model or app_model.status != "normal" or not app_model.enable_site:
             raise NotFound()
 
-        # 根据请求的参数获取 user_id
-        user_id = request.headers.get("user-id")
-        if user_id is None:
-            raise Unauthorized("user_id query parameter is missing.")
-        # # 查询用户是否存在
-        end_user = db.session.query(EndUser).filter(EndUser.session_id == user_id).first()
-        if not end_user:
+        # 根据请求的参数获取 userMsg
+        user_msg = request.args.get('userMsg')
+        # user_msg 为token 解析 user_msg 获取 user_id
+        try:
+            userMsgPayload = jwt.decode(user_msg, options={"verify_signature": False})
+        except jwt.DecodeError:
+            raise WebSSOAuthRequiredError()
+
+        user_id = userMsgPayload.get('user_id')
+        if user_id is None :
             end_user = EndUser(
                 tenant_id=app_model.tenant_id,
                 app_id=app_model.id,
                 type="browser",
                 is_anonymous=True,
-                session_id=generate_session_id(user_id),
+                session_id=generate_nosession_id(),
             )
             db.session.add(end_user)
             db.session.commit()
-
+        else:
+            end_user = db.session.query(EndUser).filter(EndUser.session_id == user_id).first()
+            if end_user is None:
+                end_user = EndUser(
+                    tenant_id=app_model.tenant_id,
+                    app_id=app_model.id,
+                    type="browser",
+                    is_anonymous=True,
+                    session_id=generate_session_id(user_id),
+                )
+                db.session.add(end_user)
+                db.session.commit()
 
         payload = {
             "iss": site.app_id,
@@ -60,6 +75,7 @@ class PassportResource(Resource):
             "app_id": site.app_id,
             "app_code": app_code,
             "end_user_id": end_user.id,
+            "user_msg": userMsgPayload,
         }
 
         tk = PassportService().issue(payload)
@@ -71,6 +87,16 @@ class PassportResource(Resource):
 
 api.add_resource(PassportResource, "/passport")
 
+
+def generate_nosession_id():
+    """
+    Generate a unique session ID.
+    """
+    while True:
+        session_id = uuid.uuid4()
+        existing_count = db.session.query(EndUser).filter(EndUser.session_id == session_id).count()
+        if existing_count == 0:
+            return session_id
 
 def generate_session_id(user_id):
     """
