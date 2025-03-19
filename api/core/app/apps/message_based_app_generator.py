@@ -1,8 +1,12 @@
+import base64
 import json
 import logging
 from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Optional, Union, cast
+
+import jwt
+from flask import request
 
 from sqlalchemy import and_
 
@@ -257,6 +261,21 @@ class MessageBasedAppGenerator(BaseAppGenerator):
         """
         app_config = application_generate_entity.app_config
         introduction = app_config.additional_features.opening_statement
+        # 从请求头中获取 token
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+        else:
+            token = None
+        if token:
+             userMsg = self._get_payload_param(token, "user_msg")
+             # 处理 userMsg 中的占位符替换
+             if userMsg:
+                 for key, value in userMsg.items():
+                     placeholder = f"{{{{{key}}}}}"
+                     if placeholder in introduction:
+                         introduction = introduction.replace(placeholder, value)
+
 
         if introduction:
             try:
@@ -268,6 +287,20 @@ class MessageBasedAppGenerator(BaseAppGenerator):
                 pass
 
         return introduction or ""
+
+    def _get_payload_param(self,jwt_token, param_name):
+        """
+        从 JWT 负载中获取指定参数
+        :param jwt_token: JWT 令牌
+        :param param_name: 要获取的参数名
+        :return: 参数值，如果不存在则返回 None
+        """
+        try:
+            msgPayload = jwt.decode(jwt_token, options={"verify_signature": False})
+            userMsg = msgPayload.get(param_name)
+            return userMsg
+        except (IndexError, json.JSONDecodeError, base64.binascii.Error):
+            return None
 
     def _get_conversation(self, conversation_id: str):
         """
