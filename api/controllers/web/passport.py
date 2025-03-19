@@ -39,14 +39,9 @@ class PassportResource(Resource):
 
         # 根据请求的参数获取 userMsg
         user_msg = request.args.get('userMsg')
-        # user_msg 为token 解析 user_msg 获取 user_id
-        try:
-            userMsgPayload = jwt.decode(user_msg, options={"verify_signature": False})
-        except jwt.DecodeError:
-            raise WebSSOAuthRequiredError()
-
-        user_id = userMsgPayload.get('user_id')
-        if user_id is None :
+        # 默认 userMsgPayload 为空
+        userMsgPayload = None
+        if user_msg is None:
             end_user = EndUser(
                 tenant_id=app_model.tenant_id,
                 app_id=app_model.id,
@@ -56,18 +51,27 @@ class PassportResource(Resource):
             )
             db.session.add(end_user)
             db.session.commit()
+        # user_msg 为token 解析 user_msg 获取 user_id
         else:
-            end_user = db.session.query(EndUser).filter(EndUser.session_id == user_id).first()
-            if end_user is None:
-                end_user = EndUser(
-                    tenant_id=app_model.tenant_id,
-                    app_id=app_model.id,
-                    type="browser",
-                    is_anonymous=True,
-                    session_id=generate_session_id(user_id),
-                )
-                db.session.add(end_user)
-                db.session.commit()
+            try:
+                userMsgPayload = jwt.decode(user_msg, options={"verify_signature": False})
+                user_id = userMsgPayload.get('user_id')
+                if user_id is None:
+                    raise WebSSOAuthRequiredError()
+                # 根据 user_id 获取 end_user
+                end_user = db.session.query(EndUser).filter(EndUser.session_id == user_id).first()
+                if end_user is None:
+                    end_user = EndUser(
+                        tenant_id=app_model.tenant_id,
+                        app_id=app_model.id,
+                        type="browser",
+                        is_anonymous=True,
+                        session_id=user_id,
+                    )
+                    db.session.add(end_user)
+                    db.session.commit()
+            except jwt.DecodeError:
+                raise WebSSOAuthRequiredError()
 
         payload = {
             "iss": site.app_id,
@@ -93,17 +97,9 @@ def generate_nosession_id():
     Generate a unique session ID.
     """
     while True:
-        session_id = uuid.uuid4()
+        session_id = str(uuid.uuid4())
         existing_count = db.session.query(EndUser).filter(EndUser.session_id == session_id).count()
         if existing_count == 0:
             return session_id
 
-def generate_session_id(user_id):
-    """
-    Generate a unique session ID.
-    """
-    while True:
-        session_id = user_id
-        existing_count = db.session.query(EndUser).filter(EndUser.session_id == session_id).count()
-        if existing_count == 0:
-            return session_id
+
