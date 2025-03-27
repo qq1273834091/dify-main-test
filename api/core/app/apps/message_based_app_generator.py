@@ -4,6 +4,7 @@ import logging
 from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Optional, Union, cast
+import re
 
 import jwt
 from flask import request
@@ -295,11 +296,16 @@ class MessageBasedAppGenerator(BaseAppGenerator):
         :param param_name: 要获取的参数名
         :return: 参数值，如果不存在则返回 None
         """
+        # # 检查 token 是否为 JWT 格式
+        # jwt_pattern = re.compile(r'^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$')
+        # if not jwt_pattern.match(jwt_token):
+        #     logger.warning(f"Invalid JWT token format: {jwt_token}")
+        #     return None
         try:
             msgPayload = jwt.decode(jwt_token, options={"verify_signature": False})
             userMsg = msgPayload.get(param_name)
             return userMsg
-        except (IndexError, json.JSONDecodeError, base64.binascii.Error):
+        except (jwt.InvalidTokenError, jwt.DecodeError):
             return None
 
     def _get_conversation(self, conversation_id: str):

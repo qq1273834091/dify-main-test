@@ -55,7 +55,7 @@ class PassportResource(Resource):
         else:
             try:
                 userMsgPayload = jwt.decode(user_msg, options={"verify_signature": False})
-                user_id = userMsgPayload.get('user_id')
+                user_id = userMsgPayload.get('cpes_user_id')
                 if user_id is None:
                     raise WebSSOAuthRequiredError()
                 # 根据 user_id 获取 end_user
