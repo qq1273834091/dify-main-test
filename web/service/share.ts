@@ -265,5 +265,17 @@ export const textToAudioStream = (url: string, isPublicAPI: boolean, header: { c
 export const fetchAccessToken = async (appCode: string) => {
   const headers = new Headers()
   headers.append('X-App-Code', appCode)
-  return get('/passport', { headers }) as Promise<{ access_token: string }>
+  let userMsg = globalThis.location.search.split('=')[1];
+  // 判断是否为空
+  if (!userMsg) {
+    // 若为空则不添加 userMsg 参数
+    return get('/passport', { headers }) as Promise<{ access_token: string }>;
+  }
+
+  return get('/passport', {
+    headers,
+    params: {
+      userMsg // 新增 userMsg 参数
+    }
+  }) as Promise<{ access_token: string }>;
 }

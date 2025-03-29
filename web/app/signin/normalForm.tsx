@@ -106,7 +106,7 @@ const NormalForm = () => {
             <RiErrorWarningFill className='absolute -right-1 -top-1 h-4 w-4 text-text-warning-secondary' />
           </div>
           <p className='system-sm-medium text-text-primary'>{t('login.licenseExpired')}</p>
-          <p className='system-xs-regular mt-1 text-text-tertiary'>{t('login.licenseExpiredTip')}</p>
+          <p className='system-xs-regular text-text-tertiary mt-1'>{t('login.licenseExpiredTip')}</p>
         </div>
       </div>
     </div>
@@ -184,29 +184,29 @@ const NormalForm = () => {
               </div>
             </div>
           </>}
-          <div className="system-xs-regular mt-2 block w-full text-text-tertiary">
-            {t('login.tosDesc')}
-            &nbsp;
-            <Link
-              className='system-xs-medium text-text-secondary hover:underline'
-              target='_blank' rel='noopener noreferrer'
-              href='https://dify.ai/terms'
-            >{t('login.tos')}</Link>
-            &nbsp;&&nbsp;
-            <Link
-              className='system-xs-medium text-text-secondary hover:underline'
-              target='_blank' rel='noopener noreferrer'
-              href='https://dify.ai/privacy'
-            >{t('login.pp')}</Link>
-          </div>
-          {IS_CE_EDITION && <div className="w-hull system-xs-regular mt-2 block text-text-tertiary">
-            {t('login.goToInit')}
-            &nbsp;
-            <Link
-              className='system-xs-medium text-text-secondary hover:underline'
-              href='/install'
-            >{t('login.setAdminAccount')}</Link>
-          </div>}
+          {/*<div className="w-full block mt-2 system-xs-regular text-text-tertiary">*/}
+          {/*  {t('login.tosDesc')}*/}
+          {/*  &nbsp;*/}
+          {/*  <Link*/}
+          {/*    className='system-xs-medium text-text-secondary hover:underline'*/}
+          {/*    target='_blank' rel='noopener noreferrer'*/}
+          {/*    href='https://dify.ai/terms'*/}
+          {/*  >{t('login.tos')}</Link>*/}
+          {/*  &nbsp;&&nbsp;*/}
+          {/*  <Link*/}
+          {/*    className='system-xs-medium text-text-secondary hover:underline'*/}
+          {/*    target='_blank' rel='noopener noreferrer'*/}
+          {/*    href='https://dify.ai/privacy'*/}
+          {/*  >{t('login.pp')}</Link>*/}
+          {/*</div>*/}
+          {/*{IS_CE_EDITION && <div className="w-hull block mt-2 system-xs-regular text-text-tertiary">*/}
+          {/*  {t('login.goToInit')}*/}
+          {/*  &nbsp;*/}
+          {/*  <Link*/}
+          {/*    className='system-xs-medium text-text-secondary hover:underline'*/}
+          {/*    href='/install'*/}
+          {/*  >{t('login.setAdminAccount')}</Link>*/}
+          {/*</div>}*/}
 
         </div>
       </div>
