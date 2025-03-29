@@ -51,6 +51,8 @@ export const useChat = (
   },
   prevChatTree?: ChatItemInTree[],
   stopChat?: (taskId: string) => void,
+  clearChatList?: boolean,
+  clearChatListCallback?: (state: boolean) => void,
 ) => {
   const { t } = useTranslation()
   const { formatTime } = useTimestamp()
@@ -75,70 +77,31 @@ export const useChat = (
     return processOpeningStatement(str, formSettings?.inputs || {}, formSettings?.inputsForm || [])
   }, [formSettings?.inputs, formSettings?.inputsForm])
 
-  const getDynamicMsg = useCallback((str: string, payload: Record<string, any>) => {
-    if (typeof str !== 'string' || typeof payload !== 'object' || payload === null) {
-        return str;
-    }
-    // 使用正则表达式匹配 {{}} 中的变量
-    return str.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
-        // 检查 payload 中是否存在该变量
-        return payload[variable] !== undefined ? payload[variable] : match;
-    });
-  }, []);
-
-
-    const getUserMsg = () => {
-      const sharedToken = globalThis.location.pathname.split('/').slice(-1)[0];
-      const accessToken = localStorage.getItem('token') || JSON.stringify({ [sharedToken]: '' });
-      const parsedToken = JSON.parse(accessToken);
-      const jwtToken = parsedToken[sharedToken];
-
-      interface Payload {
-        user_msg?: any;
-      }
-
-      let payload: Payload = {};
-      let userMsg: any;
-      if (jwtToken) {
-        const [, payloadBase64] = jwtToken.split('.');
-        if (payloadBase64) {
-          const payloadJson = atob(payloadBase64);
-          payload = JSON.parse(payloadJson) as Payload;
-          userMsg = payload['user_msg'];
-        }
-      }
-      return userMsg;
-    };
-
   /** Final chat list that will be rendered */
   const chatList = useMemo(() => {
-          const ret = [...threadMessages]
-          if (config?.opening_statement) {
-              const index = threadMessages.findIndex(item => item.isOpeningStatement)
+    const ret = [...threadMessages]
+    if (config?.opening_statement) {
+      const index = threadMessages.findIndex(item => item.isOpeningStatement)
 
-              const userMsg = getUserMsg();
-              // 使用 getDynamicMsg 函数替换占位符
-              const replacedOpeningStatement = getDynamicMsg(config.opening_statement, userMsg);
-              // 获取当前的token。zw 2025-03-14 根据token内容新增动态开场白
-              if (index > -1) {
-                  ret[index] = {
-                      ...ret[index],
-                      content: getIntroduction(replacedOpeningStatement),
-                      suggestedQuestions: config.suggested_questions,
-                  }
-              } else {
-                  ret.unshift({
-                      id: `${Date.now()}`,
-                      content: getIntroduction(replacedOpeningStatement),
-                      isAnswer: true,
-                      isOpeningStatement: true,
-                      suggestedQuestions: config.suggested_questions,
-                  })
-              }
-          }
-          return ret
-      },
-      [threadMessages, config?.opening_statement, getIntroduction, config?.suggested_questions])
+      if (index > -1) {
+        ret[index] = {
+          ...ret[index],
+          content: getIntroduction(config.opening_statement),
+          suggestedQuestions: config.suggested_questions,
+        }
+      }
+      else {
+        ret.unshift({
+          id: 'opening-statement',
+          content: getIntroduction(config.opening_statement),
+          isAnswer: true,
+          isOpeningStatement: true,
+          suggestedQuestions: config.suggested_questions,
+        })
+      }
+    }
+    return ret
+  }, [threadMessages, config?.opening_statement, getIntroduction, config?.suggested_questions])
 
   useEffect(() => {
     setAutoFreeze(false)
@@ -202,12 +165,13 @@ export const useChat = (
       suggestedQuestionsAbortControllerRef.current.abort()
   }, [stopChat, handleResponding])
 
-  const handleRestart = useCallback(() => {
+  const handleRestart = useCallback((cb?: any) => {
     conversationId.current = ''
     taskIdRef.current = ''
     handleStop()
     setChatTree([])
     setSuggestQuestions([])
+    cb?.()
   }, [handleStop])
 
   const updateCurrentQAOnTree = useCallback(({
@@ -309,7 +273,6 @@ export const useChat = (
     hasStopResponded.current = false
 
     const { query, files, inputs, ...restData } = data
-
     const bodyParams = {
       response_mode: 'streaming',
       conversation_id: conversationId.current,
@@ -345,7 +308,7 @@ export const useChat = (
       else
         ttsUrl = `/apps/${params.appId}/text-to-audio`
     }
-    const player = AudioPlayerManager.getInstance().getAudioPlayer(ttsUrl, ttsIsPublic, uuidV4(), 'none', 'none', (_: any): any => {})
+    const player = AudioPlayerManager.getInstance().getAudioPlayer(ttsUrl, ttsIsPublic, uuidV4(), 'none', 'none', (_: any): any => { })
     ssePost(
       url,
       {
@@ -437,6 +400,7 @@ export const useChat = (
               )
               setSuggestQuestions(data)
             }
+            // eslint-disable-next-line unused-imports/no-unused-vars
             catch (e) {
               setSuggestQuestions([])
             }
@@ -576,6 +540,9 @@ export const useChat = (
           if (nodeStartedData.iteration_id)
             return
 
+          if (data.loop_id)
+            return
+
           responseItem.workflowProcess!.tracing!.push({
             ...nodeStartedData,
             status: WorkflowRunningStatus.Running,
@@ -591,11 +558,14 @@ export const useChat = (
           if (nodeFinishedData.iteration_id)
             return
 
+          if (data.loop_id)
+            return
+
           const currentIndex = responseItem.workflowProcess!.tracing!.findIndex((item) => {
             if (!item.execution_metadata?.parallel_id)
               return item.node_id === nodeFinishedData.node_id
 
-            return item.node_id === nodeFinishedData.node_id && (item.execution_metadata?.parallel_id === nodeFinishedData.execution_metadata.parallel_id)
+            return item.node_id === nodeFinishedData.node_id && (item.execution_metadata?.parallel_id === nodeFinishedData.execution_metadata?.parallel_id)
           })
           responseItem.workflowProcess!.tracing[currentIndex] = nodeFinishedData as any
 
@@ -614,6 +584,35 @@ export const useChat = (
         },
         onTTSEnd: (messageId: string, audio: string) => {
           player.playAudioWithAudio(audio, false)
+        },
+        onLoopStart: ({ data: loopStartedData }) => {
+          responseItem.workflowProcess!.tracing!.push({
+            ...loopStartedData,
+            status: WorkflowRunningStatus.Running,
+          } as any)
+          updateCurrentQAOnTree({
+            placeholderQuestionId,
+            questionItem,
+            responseItem,
+            parentId: data.parent_message_id,
+          })
+        },
+        onLoopFinish: ({ data: loopFinishedData }) => {
+          const tracing = responseItem.workflowProcess!.tracing!
+          const loopIndex = tracing.findIndex(item => item.node_id === loopFinishedData.node_id
+            && (item.execution_metadata?.parallel_id === loopFinishedData.execution_metadata?.parallel_id || item.parallel_id === loopFinishedData.execution_metadata?.parallel_id))!
+          tracing[loopIndex] = {
+            ...tracing[loopIndex],
+            ...loopFinishedData,
+            status: WorkflowRunningStatus.Succeeded,
+          } as any
+
+          updateCurrentQAOnTree({
+            placeholderQuestionId,
+            questionItem,
+            responseItem,
+            parentId: data.parent_message_id,
+          })
         },
       })
     return true
@@ -685,6 +684,11 @@ export const useChat = (
       } as Annotation,
     })
   }, [chatList, updateChatTreeNode])
+
+  useEffect(() => {
+    if (clearChatList)
+      handleRestart(() => clearChatListCallback?.(false))
+  }, [clearChatList, clearChatListCallback, handleRestart])
 
   return {
     chatList,
